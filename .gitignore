@@ -26,9 +26,9 @@ transform/logs/
 transform/.user.yml
 logs/
 .dagster/
-dagster_home/storage/
-dagster_home/logs/
-dagster_home/history/
+# Instância local do Dagster: só a configuração é versionada
+dagster_home/*
+!dagster_home/dagster.yaml
 
 # --- Notebooks ---
 .ipynb_checkpoints/

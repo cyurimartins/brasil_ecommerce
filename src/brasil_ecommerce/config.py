@@ -44,6 +44,11 @@ class Settings(BaseSettings):
         """
         return self.data_dir / "consulta.duckdb"
 
+    @property
+    def tableau_dir(self) -> Path:
+        """CSVs dos marts para o Tableau Public, que não se conecta ao DuckDB."""
+        return self.data_dir / "exports" / "tableau"
+
 
 @lru_cache
 def get_settings() -> Settings:

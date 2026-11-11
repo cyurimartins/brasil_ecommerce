@@ -47,3 +47,9 @@ def test_agendamento_diario_em_horario_de_brasilia() -> None:
     assert schedule.cron_schedule == "0 6 * * *"
     assert schedule.execution_timezone == "America/Sao_Paulo"
     assert schedule.default_status == dg.DefaultScheduleStatus.STOPPED
+
+
+def test_exportacao_tableau_depende_da_publicacao(graph: Any) -> None:
+    exportacao = graph.get(dg.AssetKey("exportacao_tableau"))
+
+    assert set(exportacao.parent_keys) == {dg.AssetKey("banco_consulta")}

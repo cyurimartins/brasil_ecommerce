@@ -1,0 +1,73 @@
+version: 2
+
+sources:
+  - name: olist
+    description: >
+      Dataset público de e-commerce da Olist (Kaggle: olistbr/brazilian-ecommerce),
+      ~100 mil pedidos de 2016 a 2018. Carregado pela ingestão Python no schema `raw`,
+      com todas as colunas como VARCHAR e colunas de auditoria `_source_file` e `_loaded_at`.
+    schema: raw
+    loaded_at_field: _loaded_at
+    tables:
+      - name: orders
+        description: Um registro por pedido.
+        columns:
+          - name: order_id
+            data_tests: [unique, not_null]
+
+      - name: order_items
+        description: Um registro por item do pedido. Frete é cobrado por item.
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [order_id, order_item_id]
+
+      - name: order_payments
+        description: >
+          Um registro por pagamento. Um pedido pode ter vários pagamentos
+          (ex.: cartão + voucher) — agregar antes de juntar com pedidos.
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [order_id, payment_sequential]
+
+      - name: order_reviews
+        description: >
+          Avaliações dos pedidos. Atenção: `review_id` NÃO é único (a mesma avaliação
+          pode estar ligada a vários pedidos) e um pedido pode ter mais de uma avaliação.
+          A chave da tabela é (review_id, order_id).
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [review_id, order_id]
+
+      - name: customers
+        description: >
+          Um registro por `customer_id`, que é gerado a cada pedido. A pessoa real
+          é identificada por `customer_unique_id`.
+        columns:
+          - name: customer_id
+            data_tests: [unique, not_null]
+
+      - name: products
+        description: Catálogo de produtos.
+        columns:
+          - name: product_id
+            data_tests: [unique, not_null]
+
+      - name: sellers
+        description: Vendedores do marketplace.
+        columns:
+          - name: seller_id
+            data_tests: [unique, not_null]
+
+      - name: geolocation
+        description: >
+          Coordenadas por prefixo de CEP. Vários pontos por prefixo, grafias de cidade
+          inconsistentes e alguns pontos fora do Brasil — tratado em `int_geolocation__by_zip_prefix`.
+
+      - name: product_category_translation
+        description: Tradução das categorias de produto (português → inglês).
+        columns:
+          - name: product_category_name
+            data_tests: [unique, not_null]

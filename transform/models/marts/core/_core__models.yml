@@ -1,0 +1,241 @@
+version: 2
+
+models:
+  - name: fato_pedidos
+    description: >
+      Fato de pedidos — 1 linha por pedido. Valores de mercadoria, frete e pagamento,
+      avaliação mais recente e indicadores de entrega (prazo prometido x realizado).
+    columns:
+      - name: id_pedido
+        description: Identificador do pedido (chave primária).
+        data_tests: [unique, not_null]
+      - name: id_cliente
+        description: Cliente real (FK para dim_clientes).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_clientes')
+                field: id_cliente
+      - name: id_cliente_pedido
+        description: Identificador de cliente que a Olist gera a cada pedido (uso técnico).
+      - name: status_pedido
+        description: Status atual do pedido (valores da origem, em inglês).
+      - name: data_compra
+        description: Data da compra (FK para dim_datas).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_datas')
+                field: data_calendario
+      - name: data_hora_compra
+        description: Data e hora da compra (horário de Brasília).
+      - name: data_hora_aprovacao
+        description: Aprovação do pagamento.
+      - name: data_hora_envio_transportadora
+        description: Entrega do pedido à transportadora.
+      - name: data_hora_entrega
+        description: Entrega ao cliente.
+      - name: data_entrega_prometida
+        description: Data de entrega prometida ao cliente no momento da compra.
+      - name: quantidade_itens
+        description: Quantidade de itens (0 para pedidos cancelados/indisponíveis sem itens).
+      - name: quantidade_vendedores
+        description: Quantidade de vendedores distintos no pedido.
+      - name: valor_itens
+        description: Valor da mercadoria (R$), sem frete.
+      - name: valor_frete
+        description: Valor do frete (R$).
+      - name: valor_pedido
+        description: Mercadoria + frete (R$).
+      - name: valor_pago
+        description: >
+          Total efetivamente pago (R$). Pode diferir de `valor_pedido` por juros de
+          parcelamento ou vouchers. Nulo em 1 pedido sem pagamento registrado.
+      - name: quantidade_pagamentos
+        description: Quantidade de pagamentos do pedido.
+      - name: forma_pagamento_principal
+        description: Meio de pagamento de maior valor (valores da origem, em inglês).
+      - name: quantidade_parcelas
+        description: Maior número de parcelas entre os pagamentos do pedido.
+      - name: usou_voucher
+        description: Se algum pagamento foi com voucher.
+      - name: nota_avaliacao
+        description: Nota da avaliação mais recente (1 a 5); nula se não avaliado.
+      - name: quantidade_avaliacoes
+        description: Quantidade de avaliações recebidas.
+      - name: entregue
+        description: Status `delivered` e data de entrega preenchida.
+      - name: horas_ate_aprovacao
+        description: Horas entre a compra e a aprovação do pagamento.
+      - name: dias_ate_entrega
+        description: Dias entre a compra e a entrega ao cliente.
+      - name: dias_prometidos_entrega
+        description: Dias entre a compra e a data prometida.
+      - name: dias_atraso_entrega
+        description: Data de entrega menos data prometida, em dias (positivo = atraso).
+      - name: atrasado
+        description: Entregue depois da data prometida. Nulo se não entregue.
+
+  - name: fato_itens_pedido
+    description: >
+      Fato de itens — 1 linha por item de pedido, com produto, vendedor, cliente e
+      distância em linha reta entre vendedor e cliente.
+    columns:
+      - name: chave_item_pedido
+        description: Chave substituta (hash de id_pedido + numero_item).
+        data_tests: [unique, not_null]
+      - name: id_pedido
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fato_pedidos')
+                field: id_pedido
+      - name: numero_item
+        description: Sequencial do item dentro do pedido (1, 2, 3...).
+      - name: id_produto
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_produtos')
+                field: id_produto
+      - name: id_vendedor
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendedores')
+                field: id_vendedor
+      - name: id_cliente
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_clientes')
+                field: id_cliente
+      - name: status_pedido
+        description: Status atual do pedido.
+      - name: data_compra
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_datas')
+                field: data_calendario
+      - name: data_hora_limite_envio
+        description: Prazo para o vendedor despachar o item.
+      - name: valor_item
+        description: Preço do item (R$).
+      - name: valor_frete
+        description: Frete do item (R$).
+      - name: valor_total_item
+        description: Preço + frete (R$).
+      - name: uf_cliente
+        description: UF do cliente no momento do pedido.
+      - name: uf_vendedor
+        description: UF do vendedor.
+      - name: mesma_uf
+        description: Vendedor e cliente na mesma UF.
+      - name: distancia_vendedor_cliente_km
+        description: >
+          Distância em linha reta (Haversine) entre os centroides dos CEPs do vendedor
+          e do cliente, em km. Nula quando algum CEP não tem geolocalização.
+
+  - name: dim_clientes
+    description: >
+      Clientes reais — 1 linha por cliente (`customer_unique_id` da origem). Endereço do
+      pedido mais recente e indicadores de recompra.
+    columns:
+      - name: id_cliente
+        description: Identificador do cliente (chave primária).
+        data_tests: [unique, not_null]
+      - name: prefixo_cep
+        description: Prefixo de CEP (5 dígitos) do pedido mais recente.
+      - name: cidade
+        description: Cidade do pedido mais recente.
+      - name: uf
+        description: UF do pedido mais recente.
+      - name: latitude
+        description: Latitude do centroide do CEP (nula se CEP sem geolocalização).
+      - name: longitude
+        description: Longitude do centroide do CEP.
+      - name: data_hora_primeira_compra
+        description: Primeira compra.
+      - name: data_hora_ultima_compra
+        description: Compra mais recente.
+      - name: quantidade_pedidos
+        description: Total de pedidos do cliente.
+      - name: cliente_recorrente
+        description: Cliente com mais de um pedido.
+
+  - name: dim_vendedores
+    description: Vendedores — 1 linha por vendedor.
+    columns:
+      - name: id_vendedor
+        description: Identificador do vendedor (chave primária).
+        data_tests: [unique, not_null]
+      - name: prefixo_cep
+        description: Prefixo de CEP (5 dígitos).
+      - name: cidade
+        description: Cidade do vendedor.
+      - name: uf
+        description: UF do vendedor.
+      - name: latitude
+        description: Latitude do centroide do CEP.
+      - name: longitude
+        description: Longitude do centroide do CEP.
+
+  - name: dim_produtos
+    description: Produtos — 1 linha por produto, com categoria traduzida.
+    columns:
+      - name: id_produto
+        description: Identificador do produto (chave primária).
+        data_tests: [unique, not_null]
+      - name: categoria
+        description: Categoria em português (`sem_categoria` quando ausente).
+        data_tests: [not_null]
+      - name: categoria_ingles
+        description: Categoria em inglês; cai para o português quando não há tradução.
+        data_tests: [not_null]
+      - name: tamanho_nome
+        description: Quantidade de caracteres do nome do produto.
+      - name: tamanho_descricao
+        description: Quantidade de caracteres da descrição.
+      - name: quantidade_fotos
+        description: Quantidade de fotos publicadas.
+      - name: peso_g
+        description: Peso em gramas.
+      - name: comprimento_cm
+        description: Comprimento da embalagem (cm).
+      - name: altura_cm
+        description: Altura da embalagem (cm).
+      - name: largura_cm
+        description: Largura da embalagem (cm).
+      - name: volume_cm3
+        description: Volume da embalagem (comprimento × altura × largura), em cm³.
+
+  - name: dim_datas
+    description: Calendário — 1 linha por dia, de 2016 a 2018, com nomes em português.
+    columns:
+      - name: data_calendario
+        description: Data (chave primária).
+        data_tests: [unique, not_null]
+      - name: ano
+        description: Ano.
+      - name: trimestre
+        description: Trimestre (1 a 4).
+      - name: mes
+        description: Mês (1 a 12).
+      - name: ano_mes
+        description: Ano-mês no formato AAAA-MM.
+      - name: nome_mes
+        description: Nome do mês.
+      - name: dia_semana
+        description: Dia da semana ISO (1 = segunda ... 7 = domingo).
+      - name: nome_dia_semana
+        description: Nome do dia da semana.
+      - name: fim_de_semana
+        description: Sábado ou domingo.

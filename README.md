@@ -43,7 +43,8 @@ git clone <url-do-repositorio>
 cd brasil_ecommerce
 make setup      # cria .venv, instala dependências e ganchos do pre-commit
 make check      # lint + testes
-make ingest     # baixa os dados do Kaggle e carrega a camada raw no DuckDB
+make run        # pipeline completo: ingestão + transformação (dbt build)
+make docs       # documentação do dbt com lineage em http://localhost:8080
 ```
 
 O download do Kaggle não exige credenciais (dataset público). O warehouse fica em
@@ -64,6 +65,39 @@ Comandos disponíveis: `make help`.
   faltar algum arquivo (ou com `--force-download`).
 - **Auditoria.** Toda tabela raw tem `_source_file` e `_loaded_at`.
 
+**Transformação (dbt)**
+
+| Camada | Materialização | Papel |
+|---|---|---|
+| `staging` | view | 1:1 com a fonte: renomeia, tipa e limpa. Sem joins. |
+| `intermediate` | view | Regras de negócio e mudança de granularidade (ex.: pagamentos → pedido). |
+| `marts` | table | Modelo estrela consumido pelo BI. |
+
+Modelo estrela (`marts`):
+
+- **Fatos:** `fato_pedidos` (1 linha por pedido) e `fato_itens_pedido` (1 linha por item)
+- **Dimensões:** `dim_clientes`, `dim_produtos`, `dim_vendedores`, `dim_datas`
+
+**Nomenclatura:** as camadas internas (`raw`, `staging`, `intermediate`) mantêm os nomes em
+inglês, próximos da fonte, para facilitar a rastreabilidade. A camada `marts`, que é o contrato
+com o BI e o negócio, usa nomes em português por extenso, em snake_case e sem acentos
+(ex.: `valor_frete`, `dias_atraso_entrega`, `cliente_recorrente`).
+
+Armadilhas do dataset tratadas na modelagem (identificadas por perfilamento dos dados):
+
+- **Pagamentos múltiplos:** ~3 mil pedidos têm mais de um pagamento. São agregados por pedido
+  *antes* do join, para não duplicar a receita.
+- **Avaliações:** `review_id` não é único e ~550 pedidos têm mais de uma avaliação. Fica a mais
+  recente, com desempate determinístico.
+- **Cliente real:** a Olist gera um `customer_id` por pedido. A dimensão usa o
+  `customer_unique_id`, sem o qual a taxa de recompra seria sempre 0%.
+- **Geolocalização:** vários pontos por CEP, grafias divergentes e pontos fora do Brasil.
+  Consolidado pela mediana das coordenadas dentro do território nacional.
+- **Atraso de entrega:** comparado no nível de dia, porque a data prometida não tem hora.
+
+Qualidade: mais de 100 testes dbt (unicidade, não nulo, integridade referencial, domínios) rodam
+a cada `make transform`. Reconciliação validada: o valor total dos itens bate nas três camadas.
+
 ## Estrutura
 
 ```
@@ -80,7 +114,7 @@ Comandos disponíveis: `make help`.
 
 - [x] **Fase 1: fundação** (git, uv, ruff, pre-commit, configuração centralizada, testes)
 - [x] **Fase 2: ingestão** (Kaggle → DuckDB, camada raw com validação)
-- [ ] **Fase 3: transformação** (dbt: staging → intermediate → marts)
+- [x] **Fase 3: transformação** (dbt: staging → intermediate → marts)
 - [ ] **Fase 4: qualidade** (testes de dados e regras de negócio)
 - [ ] **Fase 5: orquestração** (Dagster)
 - [ ] **Fase 6: visualização** (Evidence.dev)

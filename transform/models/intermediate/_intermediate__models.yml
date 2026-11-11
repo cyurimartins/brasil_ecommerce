@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: int_order_payments__aggregated_to_orders
+    description: Pagamentos consolidados por pedido.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: total_paid
+        description: Soma de todos os pagamentos do pedido (R$), incluindo juros de parcelamento.
+      - name: primary_payment_type
+        description: Meio de pagamento de maior valor no pedido.
+      - name: has_voucher
+        description: Se algum pagamento do pedido foi com voucher.
+
+  - name: int_order_items__aggregated_to_orders
+    description: Itens consolidados por pedido.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: items_value
+        description: Soma dos preços dos itens (R$), sem frete.
+      - name: freight_value
+        description: Soma do frete dos itens (R$).
+
+  - name: int_order_reviews__latest_per_order
+    description: Avaliação mais recente de cada pedido.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: review_count
+        description: Quantas avaliações o pedido recebeu no total.
+
+  - name: int_geolocation__by_zip_prefix
+    description: Uma coordenada representativa (mediana) por prefixo de CEP, só pontos dentro do Brasil.
+    columns:
+      - name: zip_code_prefix
+        data_tests: [unique, not_null]
+      - name: source_point_count
+        description: Quantos pontos válidos da origem foram consolidados.

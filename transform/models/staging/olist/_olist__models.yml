@@ -1,0 +1,172 @@
+version: 2
+
+models:
+  - name: stg_olist__orders
+    description: Pedidos tipados. Timestamps em horário de Brasília (sem fuso na origem).
+    columns:
+      - name: order_id
+        description: Identificador do pedido.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Cliente do pedido (gerado por pedido; ver `customer_unique_id`).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__customers')
+                field: customer_id
+      - name: order_status
+        description: Status atual do pedido.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [created, approved, invoiced, processing, shipped, delivered, canceled, unavailable]
+      - name: purchased_at
+        description: Momento da compra.
+        data_tests: [not_null]
+      - name: approved_at
+        description: Aprovação do pagamento.
+      - name: delivered_to_carrier_at
+        description: Entrega à transportadora.
+      - name: delivered_to_customer_at
+        description: Entrega ao cliente.
+      - name: estimated_delivery_at
+        description: Data de entrega prometida ao cliente no momento da compra.
+        data_tests: [not_null]
+
+  - name: stg_olist__order_items
+    description: Itens dos pedidos. Granularidade (order_id, order_item_id).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, order_item_id]
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__orders')
+                field: order_id
+      - name: order_item_id
+        description: Sequencial do item dentro do pedido (1, 2, 3...).
+        data_tests: [not_null]
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__products')
+                field: product_id
+      - name: seller_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__sellers')
+                field: seller_id
+      - name: shipping_limit_at
+        description: Prazo para o vendedor despachar o item.
+      - name: item_price
+        description: Preço do item (R$).
+        data_tests: [not_null]
+      - name: freight_value
+        description: Frete do item (R$). Pedidos com vários itens têm o frete rateado.
+        data_tests: [not_null]
+
+  - name: stg_olist__order_payments
+    description: Pagamentos. Granularidade (order_id, payment_sequential).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, payment_sequential]
+    columns:
+      - name: order_id
+        data_tests: [not_null]
+      - name: payment_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [credit_card, boleto, voucher, debit_card, not_defined]
+      - name: payment_installments
+        description: Número de parcelas.
+      - name: payment_value
+        description: Valor do pagamento (R$).
+        data_tests: [not_null]
+
+  - name: stg_olist__order_reviews
+    description: >
+      Avaliações. Granularidade (review_id, order_id) — `review_id` sozinho não é único.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [review_id, order_id]
+    columns:
+      - name: review_score
+        description: Nota de 1 a 5.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: review_comment_title
+        description: Título do comentário (vazio vira nulo).
+      - name: review_comment_message
+        description: Texto do comentário (vazio vira nulo).
+      - name: review_created_at
+        description: Envio da pesquisa de satisfação ao cliente.
+      - name: review_answered_at
+        description: Resposta do cliente à pesquisa.
+
+  - name: stg_olist__customers
+    description: Clientes por pedido.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Identificador da pessoa (estável entre pedidos).
+        data_tests: [not_null]
+      - name: customer_zip_code_prefix
+        description: 5 primeiros dígitos do CEP, com zeros à esquerda.
+      - name: customer_state
+        description: UF (sigla).
+
+  - name: stg_olist__sellers
+    description: Vendedores.
+    columns:
+      - name: seller_id
+        data_tests: [unique, not_null]
+      - name: seller_zip_code_prefix
+        description: 5 primeiros dígitos do CEP, com zeros à esquerda.
+      - name: seller_state
+        description: UF (sigla).
+
+  - name: stg_olist__products
+    description: Produtos tipados; corrige "lenght" → "length" nos nomes de coluna.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: product_category_name
+        description: Categoria em português (nula em ~2% dos produtos).
+      - name: product_weight_g
+        description: Peso em gramas.
+
+  - name: stg_olist__product_category_translation
+    description: Tradução das categorias (português → inglês).
+    columns:
+      - name: product_category_name
+        data_tests: [unique, not_null]
+      - name: product_category_name_english
+        data_tests: [not_null]
+
+  - name: stg_olist__geolocation
+    description: Coordenadas brutas por prefixo de CEP (vários pontos por prefixo).
+    columns:
+      - name: zip_code_prefix
+        data_tests: [not_null]
+      - name: latitude
+        data_tests: [not_null]
+      - name: longitude
+        data_tests: [not_null]

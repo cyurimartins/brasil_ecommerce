@@ -43,9 +43,26 @@ git clone <url-do-repositorio>
 cd brasil_ecommerce
 make setup      # cria .venv, instala dependências e ganchos do pre-commit
 make check      # lint + testes
+make ingest     # baixa os dados do Kaggle e carrega a camada raw no DuckDB
 ```
 
+O download do Kaggle não exige credenciais (dataset público). O warehouse fica em
+`data/warehouse.duckdb`.
+
 Comandos disponíveis: `make help`.
+
+## Decisões técnicas
+
+**Ingestão (camada raw)**
+
+- **Todas as colunas como `VARCHAR`.** A camada raw é fiel à fonte e a tipagem é feita de forma
+  explícita no staging (dbt). Isso evita, por exemplo, que prefixos de CEP como `01310` virem o
+  número `1310`.
+- **Carga atômica.** As 9 tabelas são recriadas em uma única transação: se qualquer arquivo violar
+  o contrato (colunas obrigatórias ou arquivo vazio), há rollback e o warehouse permanece intacto.
+- **Idempotente.** Rodar a ingestão N vezes produz o mesmo estado. O download só acontece se
+  faltar algum arquivo (ou com `--force-download`).
+- **Auditoria.** Toda tabela raw tem `_source_file` e `_loaded_at`.
 
 ## Estrutura
 
@@ -62,7 +79,7 @@ Comandos disponíveis: `make help`.
 ## Roadmap
 
 - [x] **Fase 1: fundação** (git, uv, ruff, pre-commit, configuração centralizada, testes)
-- [ ] **Fase 2: ingestão** (Kaggle → DuckDB, camada raw com validação)
+- [x] **Fase 2: ingestão** (Kaggle → DuckDB, camada raw com validação)
 - [ ] **Fase 3: transformação** (dbt: staging → intermediate → marts)
 - [ ] **Fase 4: qualidade** (testes de dados e regras de negócio)
 - [ ] **Fase 5: orquestração** (Dagster)

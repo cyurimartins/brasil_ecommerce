@@ -7,8 +7,13 @@ requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Yuri Martins" }]
 dependencies = [
+    "duckdb>=2.0.0",
+    "kagglehub>=1.0.3",
     "pydantic-settings>=2.6",
 ]
+
+[project.scripts]
+brecom-ingest = "brasil_ecommerce.ingestion.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -31,7 +36,6 @@ packages = ["src/brasil_ecommerce"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
-extend-exclude = ["src/ingest_legacy.py"]
 
 [tool.ruff.lint]
 select = [

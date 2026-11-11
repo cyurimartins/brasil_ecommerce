@@ -1,6 +1,6 @@
 # Interface única de comandos do projeto. Rode `make` ou `make help` para ver as opções.
 .DEFAULT_GOAL := help
-.PHONY: help setup lint format test check clean
+.PHONY: help setup lint format test check ingest clean
 
 UV ?= uv
 
@@ -25,6 +25,9 @@ test: ## Roda os testes automatizados
 	$(UV) run pytest
 
 check: lint test ## Lint + testes (o mesmo que roda no CI)
+
+ingest: ## Baixa o dataset (se necessário) e carrega a camada raw no DuckDB
+	$(UV) run brecom-ingest
 
 clean: ## Remove caches e artefatos gerados (preserva data/raw)
 	rm -rf .ruff_cache .pytest_cache

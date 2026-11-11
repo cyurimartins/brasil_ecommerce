@@ -7,6 +7,8 @@ requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Yuri Martins" }]
 dependencies = [
+    "dagster>=1.13.29",
+    "dagster-dbt>=0.29.29",
     "dbt-core>=1.12.6",
     "dbt-duckdb>=1.11.1",
     "duckdb>=2.0.0",
@@ -19,6 +21,7 @@ brecom-ingest = "brasil_ecommerce.ingestion.__main__:main"
 
 [dependency-groups]
 dev = [
+    "dagster-webserver>=1.13.29",
     "pre-commit>=4.0",
     "pytest>=8.3",
     "ruff>=0.8",
@@ -61,3 +64,7 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Dependência indireta do dbt; não é código do projeto.
+    "ignore:sqlglotrs is deprecated:DeprecationWarning",
+]

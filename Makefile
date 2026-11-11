@@ -1,10 +1,12 @@
 # Interface única de comandos do projeto. Rode `make` ou `make help` para ver as opções.
 .DEFAULT_GOAL := help
-.PHONY: help setup lint format test check ingest transform test-dbt-unit run docs clean
+.PHONY: help setup lint format test check ingest transform test-dbt-unit run dagster docs clean
 
 UV ?= uv
 DBT_ARGS := --project-dir transform --profiles-dir transform
 DBT := $(UV) run dbt
+DAGSTER_MODULE := brasil_ecommerce.orchestration.definitions
+export DAGSTER_HOME := $(CURDIR)/dagster_home
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -26,7 +28,8 @@ format: ## Formata Python e SQL automaticamente
 	$(UV) run ruff format .
 	$(UV) run sqlfluff fix transform/models
 
-test: ## Roda os testes Python
+test: ## Roda os testes Python (gera o manifest do dbt, usado pelo Dagster)
+	$(DBT) parse $(DBT_ARGS) --quiet
 	$(UV) run pytest
 
 check: lint test ## Lint + testes Python (o mesmo que roda no CI)
@@ -40,7 +43,12 @@ transform: ## Executa e testa os modelos dbt (staging → intermediate → marts
 test-dbt-unit: ## Roda só os testes unitários do dbt (lógica dos modelos, rápido)
 	$(DBT) test $(DBT_ARGS) --select test_type:unit
 
-run: ingest transform ## Pipeline completo: ingestão + transformação
+run: ## Pipeline completo via Dagster: ingestão → dbt build → publicação
+	$(DBT) parse $(DBT_ARGS) --quiet
+	$(UV) run dagster job execute -m $(DAGSTER_MODULE) -j pipeline_completo
+
+dagster: ## Abre a interface do Dagster (lineage, execuções, agendamento) em http://localhost:3000
+	$(UV) run dagster dev -m $(DAGSTER_MODULE)
 
 docs: ## Gera e abre a documentação do dbt (catálogo + lineage) em http://localhost:8080
 	$(DBT) docs generate $(DBT_ARGS)

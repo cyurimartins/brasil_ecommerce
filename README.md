@@ -43,9 +43,13 @@ git clone <url-do-repositorio>
 cd brasil_ecommerce
 make setup      # cria .venv, instala dependências e ganchos do pre-commit
 make check      # lint + testes
-make run        # pipeline completo: ingestão + transformação (dbt build)
-make docs       # documentação do dbt com lineage em http://localhost:8080
+make run        # pipeline completo via Dagster: ingestão → dbt build → publicação
+make dagster    # interface do Dagster (lineage, execuções, agendamento) em http://localhost:3000
+make docs       # documentação do dbt em http://localhost:8080
 ```
+
+Para consultar os dados (DBeaver, dashboard), use **`data/consulta.duckdb`**. O arquivo
+`data/warehouse.duckdb` é de uso exclusivo do pipeline (veja *Orquestração e publicação*).
 
 O download do Kaggle não exige credenciais (dataset público). O warehouse fica em
 `data/warehouse.duckdb`.
@@ -112,11 +116,30 @@ errados cheguem ao BI.
 Os testes foram validados com *mutation testing*: três bugs introduzidos de propósito (regra de
 atraso, tipo de coluna e join duplicando valores) foram todos detectados.
 
+**Orquestração e publicação (Dagster)**
+
+O pipeline é um grafo de *assets* no Dagster, com lineage de ponta a ponta:
+
+```
+arquivos_brutos_olist → olist/* (raw) → staging/* → intermediate/* → marts/* → banco_consulta
+```
+
+- **Integração com o dbt:** cada modelo vira um *asset* e cada teste vira um *asset check*
+  (99 checks visíveis na interface).
+- **Metadados por execução:** linhas carregadas por tabela, tamanho do banco publicado.
+- **Agendamento:** execução diária às 6h (horário de Brasília). Vem desligado, porque o dataset
+  é estático; ative pela interface.
+- **Write-audit-publish:** o DuckDB não permite escrita enquanto outro processo lê o arquivo. Por
+  isso o pipeline escreve em `warehouse.duckdb` e, **só se todos os testes passarem**, publica
+  uma cópia atômica em `consulta.duckdb`, usada pelo BI e pelo DBeaver. Validado: com um teste
+  falhando de propósito, a execução é interrompida e o banco de consulta permanece intacto.
+
 ## Estrutura
 
 ```
-├── src/brasil_ecommerce/   # pacote Python (configuração, ingestão, orquestração)
-├── transform/              # projeto dbt (fase 3)
+├── src/brasil_ecommerce/   # pacote Python (configuração, ingestão, publicação, orquestração)
+├── transform/              # projeto dbt
+├── dagster_home/           # instância local do Dagster (só dagster.yaml é versionado)
 ├── tests/                  # testes automatizados
 ├── notebooks/              # análise exploratória
 ├── data/                   # dados locais, fora do git (raw/ + warehouse.duckdb)
@@ -130,7 +153,7 @@ atraso, tipo de coluna e join duplicando valores) foram todos detectados.
 - [x] **Fase 2: ingestão** (Kaggle → DuckDB, camada raw com validação)
 - [x] **Fase 3: transformação** (dbt: staging → intermediate → marts)
 - [x] **Fase 4: qualidade** (testes de dados e regras de negócio)
-- [ ] **Fase 5: orquestração** (Dagster)
+- [x] **Fase 5: orquestração** (Dagster)
 - [ ] **Fase 6: visualização** (Evidence.dev)
 - [ ] **Fase 7: CI/CD e documentação**
 

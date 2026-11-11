@@ -1,0 +1,9 @@
+# Instância local do Dagster (histórico de execuções fica em dagster_home/, fora do git).
+python_logs:
+  # Logs do pacote aparecem na interface do Dagster, junto com os do próprio Dagster.
+  managed_python_loggers:
+    - brasil_ecommerce
+  python_log_level: INFO
+
+telemetry:
+  enabled: false

@@ -97,10 +97,41 @@ delivery_metrics as (
 final as (
 
     select
-        *,
+        order_id as id_pedido,
+        customer_unique_id as id_cliente,
+        customer_id as id_cliente_pedido,
+        order_status as status_pedido,
+        purchase_date as data_compra,
+
+        purchased_at as data_hora_compra,
+        approved_at as data_hora_aprovacao,
+        delivered_to_carrier_at as data_hora_envio_transportadora,
+        delivered_to_customer_at as data_hora_entrega,
+        cast(estimated_delivery_at as date) as data_entrega_prometida,
+
+        item_count as quantidade_itens,
+        distinct_seller_count as quantidade_vendedores,
+        items_value as valor_itens,
+        freight_value as valor_frete,
+        order_value as valor_pedido,
+
+        total_paid as valor_pago,
+        payment_count as quantidade_pagamentos,
+        primary_payment_type as forma_pagamento_principal,
+        max_installments as quantidade_parcelas,
+        has_voucher as usou_voucher,
+
+        review_score as nota_avaliacao,
+        review_count as quantidade_avaliacoes,
+
+        is_delivered as entregue,
+        approval_hours as horas_ate_aprovacao,
+        delivery_days as dias_ate_entrega,
+        promised_delivery_days as dias_prometidos_entrega,
+        delivery_delay_days as dias_atraso_entrega,
         case
             when is_delivered then delivery_delay_days > 0
-        end as is_late
+        end as atrasado
 
     from delivery_metrics
 

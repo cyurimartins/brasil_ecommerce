@@ -75,8 +75,13 @@ Comandos disponíveis: `make help`.
 
 Modelo estrela (`marts`):
 
-- **Fatos:** `fct_orders` (1 linha por pedido) e `fct_order_items` (1 linha por item)
-- **Dimensões:** `dim_customers`, `dim_products`, `dim_sellers`, `dim_dates`
+- **Fatos:** `fato_pedidos` (1 linha por pedido) e `fato_itens_pedido` (1 linha por item)
+- **Dimensões:** `dim_clientes`, `dim_produtos`, `dim_vendedores`, `dim_datas`
+
+**Nomenclatura:** as camadas internas (`raw`, `staging`, `intermediate`) mantêm os nomes em
+inglês, próximos da fonte, para facilitar a rastreabilidade. A camada `marts`, que é o contrato
+com o BI e o negócio, usa nomes em português por extenso, em snake_case e sem acentos
+(ex.: `valor_frete`, `dias_atraso_entrega`, `cliente_recorrente`).
 
 Armadilhas do dataset tratadas na modelagem (identificadas por perfilamento dos dados):
 

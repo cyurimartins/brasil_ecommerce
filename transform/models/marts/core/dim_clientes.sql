@@ -55,16 +55,16 @@ aggregated as (
 final as (
 
     select
-        aggregated.customer_unique_id,
-        aggregated.zip_code_prefix,
-        aggregated.city,
-        aggregated.state,
+        aggregated.customer_unique_id as id_cliente,
+        aggregated.zip_code_prefix as prefixo_cep,
+        aggregated.city as cidade,
+        aggregated.state as uf,
         geolocation.latitude,
         geolocation.longitude,
-        aggregated.first_purchase_at,
-        aggregated.last_purchase_at,
-        aggregated.order_count,
-        aggregated.order_count > 1 as is_repeat_customer
+        aggregated.first_purchase_at as data_hora_primeira_compra,
+        aggregated.last_purchase_at as data_hora_ultima_compra,
+        aggregated.order_count as quantidade_pedidos,
+        aggregated.order_count > 1 as cliente_recorrente
 
     from aggregated
     left join geolocation on aggregated.zip_code_prefix = geolocation.zip_code_prefix

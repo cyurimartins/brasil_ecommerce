@@ -17,10 +17,10 @@ geolocation as (
 final as (
 
     select
-        sellers.seller_id,
-        sellers.seller_zip_code_prefix as zip_code_prefix,
-        sellers.seller_city as city,
-        sellers.seller_state as state,
+        sellers.seller_id as id_vendedor,
+        sellers.seller_zip_code_prefix as prefixo_cep,
+        sellers.seller_city as cidade,
+        sellers.seller_state as uf,
         geolocation.latitude,
         geolocation.longitude
 

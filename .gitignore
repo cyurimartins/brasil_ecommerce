@@ -1,0 +1,38 @@
+# --- Ambientes Python ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# --- Segredos ---
+.env
+!.env.example
+
+# --- Dados (reproduzíveis via pipeline; não versionar) ---
+data/
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# --- Artefatos gerados ---
+models/*.pkl
+transform/target/
+transform/dbt_packages/
+transform/logs/
+logs/
+.dagster/
+dagster_home/storage/
+dagster_home/logs/
+dagster_home/history/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- IDE / SO ---
+.vscode/
+.idea/
+.DS_Store

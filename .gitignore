@@ -37,3 +37,4 @@ dagster_home/*
 .vscode/
 .idea/
 .DS_Store
+transform/*.concurrent-update-lock

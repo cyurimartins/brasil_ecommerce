@@ -70,3 +70,16 @@ def test_nao_publica_se_nao_houver_tabelas_de_consumo(tmp_path: Path) -> None:
 def test_warehouse_inexistente_falha(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         publish(tmp_path / "nao_existe.duckdb", tmp_path / "consulta.duckdb")
+
+
+def test_exporta_marts_em_csv(warehouse: Path, tmp_path: Path) -> None:
+    from brasil_ecommerce.export import export_csv
+
+    destino = tmp_path / "tableau"
+
+    counts = export_csv(warehouse, destino)
+
+    assert counts == {"fato": 3}
+    linhas = (destino / "fato.csv").read_text(encoding="utf-8").splitlines()
+    assert linhas == ["id", "0", "1", "2"]
+    assert not list(destino.glob(".*.tmp"))

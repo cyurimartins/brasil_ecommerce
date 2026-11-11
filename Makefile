@@ -1,6 +1,6 @@
 # Interface única de comandos do projeto. Rode `make` ou `make help` para ver as opções.
 .DEFAULT_GOAL := help
-.PHONY: help setup lint format test check ingest transform test-dbt-unit run dagster docs clean
+.PHONY: help setup lint format test check ingest transform test-dbt-unit run dagster dashboard docs clean
 
 UV ?= uv
 DBT_ARGS := --project-dir transform --profiles-dir transform
@@ -49,6 +49,9 @@ run: ## Pipeline completo via Dagster: ingestão → dbt build → publicação
 
 dagster: ## Abre a interface do Dagster (lineage, execuções, agendamento) em http://localhost:3000
 	$(UV) run dagster dev -m $(DAGSTER_MODULE)
+
+dashboard: ## Abre o dashboard (Streamlit) em http://localhost:8501; requer `make run` antes
+	$(UV) run streamlit run dashboard/app.py
 
 docs: ## Gera e abre a documentação do dbt (catálogo + lineage) em http://localhost:8080
 	$(DBT) docs generate $(DBT_ARGS)

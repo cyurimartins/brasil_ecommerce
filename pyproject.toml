@@ -13,7 +13,10 @@ dependencies = [
     "dbt-duckdb>=1.11.1",
     "duckdb>=2.0.0",
     "kagglehub>=1.0.3",
+    "pandas>=3.1.1",
+    "plotly>=7.1.0",
     "pydantic-settings>=2.6",
+    "streamlit>=1.67.0",
 ]
 
 [project.scripts]
@@ -45,6 +48,8 @@ target-version = "py312"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
+# Tipografia intencional em textos exibidos no dashboard.
+allowed-confusables = ["×", "–"]
 select = [
     "E", "W",   # pycodestyle
     "F",        # pyflakes

@@ -63,7 +63,7 @@ final as (
         geolocation.longitude,
         aggregated.first_purchase_at as data_hora_primeira_compra,
         aggregated.last_purchase_at as data_hora_ultima_compra,
-        aggregated.order_count as quantidade_pedidos,
+        cast(aggregated.order_count as integer) as quantidade_pedidos,
         aggregated.order_count > 1 as cliente_recorrente
 
     from aggregated

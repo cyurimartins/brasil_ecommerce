@@ -49,7 +49,7 @@ final as (
 
         items.item_price as valor_item,
         items.freight_value as valor_frete,
-        items.item_price + items.freight_value as valor_total_item,
+        cast(items.item_price + items.freight_value as decimal(12, 2)) as valor_total_item,
 
         customers.customer_state as uf_cliente,
         sellers.seller_state as uf_vendedor,

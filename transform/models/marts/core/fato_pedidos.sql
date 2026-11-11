@@ -109,26 +109,26 @@ final as (
         delivered_to_customer_at as data_hora_entrega,
         cast(estimated_delivery_at as date) as data_entrega_prometida,
 
-        item_count as quantidade_itens,
-        distinct_seller_count as quantidade_vendedores,
-        items_value as valor_itens,
-        freight_value as valor_frete,
-        order_value as valor_pedido,
+        cast(item_count as integer) as quantidade_itens,
+        cast(distinct_seller_count as integer) as quantidade_vendedores,
+        cast(items_value as decimal(14, 2)) as valor_itens,
+        cast(freight_value as decimal(14, 2)) as valor_frete,
+        cast(order_value as decimal(14, 2)) as valor_pedido,
 
-        total_paid as valor_pago,
-        payment_count as quantidade_pagamentos,
+        cast(total_paid as decimal(14, 2)) as valor_pago,
+        cast(payment_count as integer) as quantidade_pagamentos,
         primary_payment_type as forma_pagamento_principal,
         max_installments as quantidade_parcelas,
         has_voucher as usou_voucher,
 
         review_score as nota_avaliacao,
-        review_count as quantidade_avaliacoes,
+        cast(review_count as integer) as quantidade_avaliacoes,
 
         is_delivered as entregue,
-        approval_hours as horas_ate_aprovacao,
-        delivery_days as dias_ate_entrega,
-        promised_delivery_days as dias_prometidos_entrega,
-        delivery_delay_days as dias_atraso_entrega,
+        cast(approval_hours as integer) as horas_ate_aprovacao,
+        cast(delivery_days as integer) as dias_ate_entrega,
+        cast(promised_delivery_days as integer) as dias_prometidos_entrega,
+        cast(delivery_delay_days as integer) as dias_atraso_entrega,
         case
             when is_delivered then delivery_delay_days > 0
         end as atrasado

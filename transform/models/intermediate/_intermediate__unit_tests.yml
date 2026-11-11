@@ -1,0 +1,52 @@
+version: 2
+
+unit_tests:
+  - name: pagamentos__forma_principal_e_a_de_maior_valor
+    description: >
+      Pedido pago com voucher (R$ 20) + cartão (R$ 80): a forma principal é o cartão,
+      o total soma os dois e o pedido é marcado como "usou voucher".
+      Em empate de valor, vence o primeiro pagamento (menor payment_sequential).
+    model: int_order_payments__aggregated_to_orders
+    given:
+      - input: ref('stg_olist__order_payments')
+        rows:
+          - {order_id: p1, payment_sequential: 1, payment_type: voucher, payment_installments: 1, payment_value: 20.00}
+          - {order_id: p1, payment_sequential: 2, payment_type: credit_card, payment_installments: 3, payment_value: 80.00}
+          - {order_id: p2, payment_sequential: 1, payment_type: boleto, payment_installments: 1, payment_value: 50.00}
+          - {order_id: p2, payment_sequential: 2, payment_type: debit_card, payment_installments: 1, payment_value: 50.00}
+    expect:
+      rows:
+        - {order_id: p1, payment_count: 2, total_paid: 100.00, max_installments: 3, primary_payment_type: credit_card, has_voucher: true}
+        - {order_id: p2, payment_count: 2, total_paid: 100.00, max_installments: 1, primary_payment_type: boleto, has_voucher: false}
+
+  - name: avaliacoes__mantem_a_mais_recente
+    description: >
+      Pedido com duas avaliações: fica a respondida por último. A contagem total
+      de avaliações é preservada.
+    model: int_order_reviews__latest_per_order
+    given:
+      - input: ref('stg_olist__order_reviews')
+        rows:
+          - {review_id: r_antiga, order_id: p1, review_score: 1, review_created_at: "2018-01-01", review_answered_at: "2018-01-02"}
+          - {review_id: r_nova, order_id: p1, review_score: 4, review_created_at: "2018-01-10", review_answered_at: "2018-01-11"}
+          - {review_id: r_unica, order_id: p2, review_score: 5, review_created_at: "2018-02-01", review_answered_at: "2018-02-02"}
+    expect:
+      rows:
+        - {order_id: p1, review_id: r_nova, review_score: 4, review_count: 2}
+        - {order_id: p2, review_id: r_unica, review_score: 5, review_count: 1}
+
+  - name: geolocalizacao__descarta_pontos_fora_do_brasil_e_usa_mediana
+    description: >
+      Três pontos válidos para o CEP 01310 e um ponto em Portugal (erro da origem):
+      o ponto fora do Brasil é descartado e a coordenada é a mediana dos válidos.
+    model: int_geolocation__by_zip_prefix
+    given:
+      - input: ref('stg_olist__geolocation')
+        rows:
+          - {zip_code_prefix: "01310", latitude: -23.50, longitude: -46.60, city: sao paulo, state: SP}
+          - {zip_code_prefix: "01310", latitude: -23.56, longitude: -46.65, city: são paulo, state: SP}
+          - {zip_code_prefix: "01310", latitude: -23.60, longitude: -46.70, city: sao paulo, state: SP}
+          - {zip_code_prefix: "01310", latitude: 38.72, longitude: -9.14, city: lisboa, state: SP}
+    expect:
+      rows:
+        - {zip_code_prefix: "01310", latitude: -23.56, longitude: -46.65, state: SP, source_point_count: 3}

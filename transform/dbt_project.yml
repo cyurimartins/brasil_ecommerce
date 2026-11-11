@@ -29,6 +29,9 @@ models:
     marts:
       +schema: marts
       +materialized: table
+      # Contrato: nomes e tipos das colunas garantidos para quem consome (BI).
+      +contract:
+        enforced: true
 
 tests:
   brasil_ecommerce:

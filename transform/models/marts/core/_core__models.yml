@@ -5,11 +5,64 @@ models:
     description: >
       Fato de pedidos — 1 linha por pedido. Valores de mercadoria, frete e pagamento,
       avaliação mais recente e indicadores de entrega (prazo prometido x realizado).
+    data_tests:
+      # Regra de composição do valor do pedido.
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__valor_pedido_igual_itens_mais_frete
+          arguments:
+            expression: "valor_pedido = valor_itens + valor_frete"
+      # A flag de atraso precisa ser coerente com os dias de atraso.
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__atrasado_coerente_com_dias_atraso
+          arguments:
+            expression: "atrasado = (dias_atraso_entrega > 0)"
+          config:
+            where: "entregue"
+      # Pedido entregue sempre tem data de entrega e flag de atraso.
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__entregue_tem_data_e_flag
+          arguments:
+            expression: "data_hora_entrega is not null and atrasado is not null"
+          config:
+            where: "entregue"
+      # Cronologia: entrega e aprovação não podem ser anteriores à compra.
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__entrega_apos_compra
+          arguments:
+            expression: "data_hora_entrega >= data_hora_compra"
+          config:
+            where: "data_hora_entrega is not null"
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__aprovacao_apos_compra
+          arguments:
+            expression: "data_hora_aprovacao >= data_hora_compra"
+          config:
+            where: "data_hora_aprovacao is not null"
+      # Anomalias conhecidas da origem: limiar calibrado no baseline (166 e 23 casos).
+      # Não bloqueiam o pipeline, mas alertam se a qualidade piorar.
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__envio_transportadora_apos_compra
+          arguments:
+            expression: "data_hora_envio_transportadora >= data_hora_compra"
+          config:
+            where: "data_hora_envio_transportadora is not null"
+            warn_if: ">200"
+            error_if: ">1000"
+      - dbt_utils.expression_is_true:
+          name: fato_pedidos__entrega_apos_envio_transportadora
+          arguments:
+            expression: "data_hora_entrega >= data_hora_envio_transportadora"
+          config:
+            where: "data_hora_entrega is not null and data_hora_envio_transportadora is not null"
+            warn_if: ">50"
+            error_if: ">500"
     columns:
       - name: id_pedido
+        data_type: varchar
         description: Identificador do pedido (chave primária).
         data_tests: [unique, not_null]
       - name: id_cliente
+        data_type: varchar
         description: Cliente real (FK para dim_clientes).
         data_tests:
           - not_null
@@ -18,10 +71,18 @@ models:
                 to: ref('dim_clientes')
                 field: id_cliente
       - name: id_cliente_pedido
+        data_type: varchar
         description: Identificador de cliente que a Olist gera a cada pedido (uso técnico).
       - name: status_pedido
+        data_type: varchar
         description: Status atual do pedido (valores da origem, em inglês).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [created, approved, invoiced, processing, shipped, delivered, canceled, unavailable]
       - name: data_compra
+        data_type: date
         description: Data da compra (FK para dim_datas).
         data_tests:
           - not_null
@@ -30,63 +91,122 @@ models:
                 to: ref('dim_datas')
                 field: data_calendario
       - name: data_hora_compra
+        data_type: timestamp
         description: Data e hora da compra (horário de Brasília).
       - name: data_hora_aprovacao
+        data_type: timestamp
         description: Aprovação do pagamento.
       - name: data_hora_envio_transportadora
+        data_type: timestamp
         description: Entrega do pedido à transportadora.
       - name: data_hora_entrega
+        data_type: timestamp
         description: Entrega ao cliente.
       - name: data_entrega_prometida
+        data_type: date
         description: Data de entrega prometida ao cliente no momento da compra.
       - name: quantidade_itens
+        data_type: integer
         description: Quantidade de itens (0 para pedidos cancelados/indisponíveis sem itens).
       - name: quantidade_vendedores
+        data_type: integer
         description: Quantidade de vendedores distintos no pedido.
       - name: valor_itens
+        data_type: decimal(14,2)
         description: Valor da mercadoria (R$), sem frete.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: valor_frete
+        data_type: decimal(14,2)
         description: Valor do frete (R$).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: valor_pedido
+        data_type: decimal(14,2)
         description: Mercadoria + frete (R$).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: valor_pago
+        data_type: decimal(14,2)
         description: >
           Total efetivamente pago (R$). Pode diferir de `valor_pedido` por juros de
           parcelamento ou vouchers. Nulo em 1 pedido sem pagamento registrado.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: quantidade_pagamentos
+        data_type: integer
         description: Quantidade de pagamentos do pedido.
       - name: forma_pagamento_principal
+        data_type: varchar
         description: Meio de pagamento de maior valor (valores da origem, em inglês).
       - name: quantidade_parcelas
+        data_type: integer
         description: Maior número de parcelas entre os pagamentos do pedido.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 24
       - name: usou_voucher
+        data_type: boolean
         description: Se algum pagamento foi com voucher.
       - name: nota_avaliacao
+        data_type: integer
         description: Nota da avaliação mais recente (1 a 5); nula se não avaliado.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: quantidade_avaliacoes
+        data_type: integer
         description: Quantidade de avaliações recebidas.
       - name: entregue
+        data_type: boolean
         description: Status `delivered` e data de entrega preenchida.
       - name: horas_ate_aprovacao
+        data_type: integer
         description: Horas entre a compra e a aprovação do pagamento.
       - name: dias_ate_entrega
+        data_type: integer
         description: Dias entre a compra e a entrega ao cliente.
       - name: dias_prometidos_entrega
+        data_type: integer
         description: Dias entre a compra e a data prometida.
       - name: dias_atraso_entrega
+        data_type: integer
         description: Data de entrega menos data prometida, em dias (positivo = atraso).
       - name: atrasado
+        data_type: boolean
         description: Entregue depois da data prometida. Nulo se não entregue.
 
   - name: fato_itens_pedido
     description: >
       Fato de itens — 1 linha por item de pedido, com produto, vendedor, cliente e
       distância em linha reta entre vendedor e cliente.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [id_pedido, numero_item]
+      - dbt_utils.expression_is_true:
+          name: fato_itens_pedido__valor_total_igual_item_mais_frete
+          arguments:
+            expression: "valor_total_item = valor_item + valor_frete"
     columns:
       - name: chave_item_pedido
+        data_type: varchar
         description: Chave substituta (hash de id_pedido + numero_item).
         data_tests: [unique, not_null]
       - name: id_pedido
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -94,8 +214,10 @@ models:
                 to: ref('fato_pedidos')
                 field: id_pedido
       - name: numero_item
+        data_type: integer
         description: Sequencial do item dentro do pedido (1, 2, 3...).
       - name: id_produto
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -103,6 +225,7 @@ models:
                 to: ref('dim_produtos')
                 field: id_produto
       - name: id_vendedor
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -110,6 +233,7 @@ models:
                 to: ref('dim_vendedores')
                 field: id_vendedor
       - name: id_cliente
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -117,8 +241,10 @@ models:
                 to: ref('dim_clientes')
                 field: id_cliente
       - name: status_pedido
+        data_type: varchar
         description: Status atual do pedido.
       - name: data_compra
+        data_type: date
         data_tests:
           - not_null
           - relationships:
@@ -126,116 +252,190 @@ models:
                 to: ref('dim_datas')
                 field: data_calendario
       - name: data_hora_limite_envio
+        data_type: timestamp
         description: Prazo para o vendedor despachar o item.
       - name: valor_item
+        data_type: decimal(12,2)
         description: Preço do item (R$).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
       - name: valor_frete
+        data_type: decimal(12,2)
         description: Frete do item (R$).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: valor_total_item
+        data_type: decimal(12,2)
         description: Preço + frete (R$).
       - name: uf_cliente
+        data_type: varchar
         description: UF do cliente no momento do pedido.
       - name: uf_vendedor
+        data_type: varchar
         description: UF do vendedor.
       - name: mesma_uf
+        data_type: boolean
         description: Vendedor e cliente na mesma UF.
       - name: distancia_vendedor_cliente_km
+        data_type: double
         description: >
           Distância em linha reta (Haversine) entre os centroides dos CEPs do vendedor
           e do cliente, em km. Nula quando algum CEP não tem geolocalização.
-
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5000
+          - not_null:
+              config:
+                warn_if: ">1000"
+                error_if: ">5000"
   - name: dim_clientes
     description: >
       Clientes reais — 1 linha por cliente (`customer_unique_id` da origem). Endereço do
       pedido mais recente e indicadores de recompra.
     columns:
       - name: id_cliente
+        data_type: varchar
         description: Identificador do cliente (chave primária).
         data_tests: [unique, not_null]
       - name: prefixo_cep
+        data_type: varchar
         description: Prefixo de CEP (5 dígitos) do pedido mais recente.
       - name: cidade
+        data_type: varchar
         description: Cidade do pedido mais recente.
       - name: uf
+        data_type: varchar
         description: UF do pedido mais recente.
       - name: latitude
+        data_type: double
         description: Latitude do centroide do CEP (nula se CEP sem geolocalização).
+        data_tests:
+          - not_null:
+              config:
+                warn_if: ">500"
+                error_if: ">2000"
       - name: longitude
+        data_type: double
         description: Longitude do centroide do CEP.
       - name: data_hora_primeira_compra
+        data_type: timestamp
         description: Primeira compra.
       - name: data_hora_ultima_compra
+        data_type: timestamp
         description: Compra mais recente.
       - name: quantidade_pedidos
+        data_type: integer
         description: Total de pedidos do cliente.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
       - name: cliente_recorrente
+        data_type: boolean
         description: Cliente com mais de um pedido.
 
   - name: dim_vendedores
     description: Vendedores — 1 linha por vendedor.
     columns:
       - name: id_vendedor
+        data_type: varchar
         description: Identificador do vendedor (chave primária).
         data_tests: [unique, not_null]
       - name: prefixo_cep
+        data_type: varchar
         description: Prefixo de CEP (5 dígitos).
       - name: cidade
+        data_type: varchar
         description: Cidade do vendedor.
       - name: uf
+        data_type: varchar
         description: UF do vendedor.
       - name: latitude
+        data_type: double
         description: Latitude do centroide do CEP.
       - name: longitude
+        data_type: double
         description: Longitude do centroide do CEP.
 
   - name: dim_produtos
     description: Produtos — 1 linha por produto, com categoria traduzida.
     columns:
       - name: id_produto
+        data_type: varchar
         description: Identificador do produto (chave primária).
         data_tests: [unique, not_null]
       - name: categoria
+        data_type: varchar
         description: Categoria em português (`sem_categoria` quando ausente).
         data_tests: [not_null]
       - name: categoria_ingles
+        data_type: varchar
         description: Categoria em inglês; cai para o português quando não há tradução.
         data_tests: [not_null]
       - name: tamanho_nome
+        data_type: integer
         description: Quantidade de caracteres do nome do produto.
       - name: tamanho_descricao
+        data_type: integer
         description: Quantidade de caracteres da descrição.
       - name: quantidade_fotos
+        data_type: integer
         description: Quantidade de fotos publicadas.
       - name: peso_g
+        data_type: integer
         description: Peso em gramas.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: comprimento_cm
+        data_type: integer
         description: Comprimento da embalagem (cm).
       - name: altura_cm
+        data_type: integer
         description: Altura da embalagem (cm).
       - name: largura_cm
+        data_type: integer
         description: Largura da embalagem (cm).
       - name: volume_cm3
+        data_type: integer
         description: Volume da embalagem (comprimento × altura × largura), em cm³.
 
   - name: dim_datas
     description: Calendário — 1 linha por dia, de 2016 a 2018, com nomes em português.
     columns:
       - name: data_calendario
+        data_type: date
         description: Data (chave primária).
         data_tests: [unique, not_null]
       - name: ano
+        data_type: integer
         description: Ano.
       - name: trimestre
+        data_type: integer
         description: Trimestre (1 a 4).
       - name: mes
+        data_type: integer
         description: Mês (1 a 12).
       - name: ano_mes
+        data_type: varchar
         description: Ano-mês no formato AAAA-MM.
       - name: nome_mes
+        data_type: varchar
         description: Nome do mês.
       - name: dia_semana
+        data_type: integer
         description: Dia da semana ISO (1 = segunda ... 7 = domingo).
       - name: nome_dia_semana
+        data_type: varchar
         description: Nome do dia da semana.
       - name: fim_de_semana
+        data_type: boolean
         description: Sábado ou domingo.

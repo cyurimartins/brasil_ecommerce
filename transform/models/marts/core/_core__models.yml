@@ -73,6 +73,12 @@ models:
       - name: id_cliente_pedido
         data_type: varchar
         description: Identificador de cliente que a Olist gera a cada pedido (uso técnico).
+      - name: uf_cliente
+        data_type: varchar
+        description: >
+          UF do cliente no momento da compra. Use esta coluna (e não dim_clientes.uf, que
+          é o endereço mais recente) para análises geográficas de pedidos.
+        data_tests: [not_null]
       - name: status_pedido
         data_type: varchar
         description: Status atual do pedido (valores da origem, em inglês).

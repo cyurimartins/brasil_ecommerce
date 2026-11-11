@@ -39,6 +39,7 @@ joined as (
         orders.order_id,
         customers.customer_unique_id,
         orders.customer_id,
+        customers.customer_state,
         orders.order_status,
         cast(orders.purchased_at as date) as purchase_date,
 
@@ -100,6 +101,7 @@ final as (
         order_id as id_pedido,
         customer_unique_id as id_cliente,
         customer_id as id_cliente_pedido,
+        customer_state as uf_cliente,
         order_status as status_pedido,
         purchase_date as data_compra,
 

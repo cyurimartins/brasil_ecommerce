@@ -16,7 +16,7 @@ Kaggle (CSV) ──► Ingestão (Python) ──► DuckDB [raw]
                                           └──► marts        modelo estrela (Kimball)
                                                    │
                                                    ▼
-                                             Dashboard (Evidence)
+                                       Dashboard (Streamlit) · CSV → Tableau Public
 
 Orquestração: Dagster  ·  Qualidade: testes dbt  ·  CI: GitHub Actions
 ```
@@ -30,7 +30,7 @@ Orquestração: Dagster  ·  Qualidade: testes dbt  ·  CI: GitHub Actions
 | Armazenamento   | DuckDB                            |
 | Transformação   | dbt-core + dbt-duckdb             |
 | Orquestração    | Dagster                           |
-| Visualização    | Evidence.dev                      |
+| Visualização    | Streamlit + Plotly; Tableau Public (via CSV) |
 | Qualidade       | ruff, pre-commit, pytest, testes dbt |
 | CI              | GitHub Actions                    |
 
@@ -45,6 +45,7 @@ make setup      # cria .venv, instala dependências e ganchos do pre-commit
 make check      # lint + testes
 make run        # pipeline completo via Dagster: ingestão → dbt build → publicação
 make dagster    # interface do Dagster (lineage, execuções, agendamento) em http://localhost:3000
+make dashboard  # dashboard em http://localhost:8501
 make docs       # documentação do dbt em http://localhost:8080
 ```
 
@@ -134,11 +135,41 @@ arquivos_brutos_olist → olist/* (raw) → staging/* → intermediate/* → mar
   uma cópia atômica em `consulta.duckdb`, usada pelo BI e pelo DBeaver. Validado: com um teste
   falhando de propósito, a execução é interrompida e o banco de consulta permanece intacto.
 
+**Visualização**
+
+![Dashboard: visão geral](docs/img/dashboard_visao_geral.png)
+
+Dashboard em **Streamlit** com 5 páginas (visão geral, vendas, logística, satisfação e
+clientes) e filtros de período e UF compartilhados entre as páginas.
+
+- **Consultas separadas da interface** (`src/brasil_ecommerce/dashboard/queries.py`) e
+  testadas com um banco fictício. Os testes também renderizam cada página.
+- **Definições de negócio explícitas e únicas:** pedido válido, faturamento, ticket médio
+  e atraso.
+- **Boas práticas de visualização:** paleta validada para daltonismo (com variação para o modo
+  escuro), um eixo por gráfico, rótulos em pt-BR e uma tabela com os dados de cada gráfico.
+- **Tableau Public:** o *asset* `exportacao_tableau` gera os marts em CSV. Veja o
+  [guia do Tableau](docs/tableau.md).
+
+Principais achados:
+
+| Achado | Número |
+|---|---|
+| Nota média: entregue no prazo × com atraso | **4,29 × 2,27** |
+| Nota com mais de 8 dias de atraso | **1,70** |
+| Frete como % do preço: até 100 km × acima de 1.500 km | **24% × 47%** |
+| Prazo prometido × realizado (média) | **~24 × ~12 dias** |
+| Clientes que compraram mais de uma vez | **3%** |
+
+![Dashboard: logística](docs/img/dashboard_logistica.png)
+
 ## Estrutura
 
 ```
 ├── src/brasil_ecommerce/   # pacote Python (configuração, ingestão, publicação, orquestração)
 ├── transform/              # projeto dbt
+├── dashboard/              # aplicação Streamlit
+├── docs/                   # guia do Tableau e imagens
 ├── dagster_home/           # instância local do Dagster (só dagster.yaml é versionado)
 ├── tests/                  # testes automatizados
 ├── notebooks/              # análise exploratória
@@ -154,7 +185,7 @@ arquivos_brutos_olist → olist/* (raw) → staging/* → intermediate/* → mar
 - [x] **Fase 3: transformação** (dbt: staging → intermediate → marts)
 - [x] **Fase 4: qualidade** (testes de dados e regras de negócio)
 - [x] **Fase 5: orquestração** (Dagster)
-- [ ] **Fase 6: visualização** (Evidence.dev)
+- [x] **Fase 6: visualização** (Streamlit + exportação para Tableau Public)
 - [ ] **Fase 7: CI/CD e documentação**
 
 ## Licença

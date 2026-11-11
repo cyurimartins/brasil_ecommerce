@@ -23,6 +23,7 @@ models/*.pkl
 transform/target/
 transform/dbt_packages/
 transform/logs/
+transform/.user.yml
 logs/
 .dagster/
 dagster_home/storage/

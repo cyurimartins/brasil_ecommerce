@@ -1,0 +1,9 @@
+# Sem segredos: DuckDB é um arquivo local. O caminho segue a mesma variável do
+# pacote Python (BRECOM_DATA_DIR), relativo à raiz do repositório.
+brasil_ecommerce:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('BRECOM_DATA_DIR', 'data') }}/warehouse.duckdb"
+      threads: 4

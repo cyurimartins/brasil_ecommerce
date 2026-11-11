@@ -95,8 +95,22 @@ Armadilhas do dataset tratadas na modelagem (identificadas por perfilamento dos 
   Consolidado pela mediana das coordenadas dentro do território nacional.
 - **Atraso de entrega:** comparado no nível de dia, porque a data prometida não tem hora.
 
-Qualidade: mais de 100 testes dbt (unicidade, não nulo, integridade referencial, domínios) rodam
-a cada `make transform`. Reconciliação validada: o valor total dos itens bate nas três camadas.
+**Qualidade de dados**
+
+Cada `make transform` executa 120 testes. Uma falha interrompe o pipeline antes que dados
+errados cheguem ao BI.
+
+| Tipo | O que garante | Exemplos |
+|---|---|---|
+| **Testes genéricos** | Integridade estrutural | Chaves únicas e não nulas; integridade referencial fato → dimensão; domínios fechados |
+| **Regras de negócio** | Coerência dos dados | `valor_pedido = valor_itens + valor_frete`; entrega após a compra; nota entre 1 e 5 |
+| **Testes com limiar** | Anomalias conhecidas da origem, monitoradas | 166 pedidos com envio antes da compra: alerta acima de 200, erro acima de 1.000 |
+| **Testes singulares** | Reconciliação entre camadas | Valor total dos itens idêntico em staging e nas duas fatos; nenhum pedido perdido |
+| **Testes unitários** | A *lógica* dos modelos, com dados fictícios | Atraso comparado por dia; forma de pagamento principal; distância SP → RJ = 360,7 km |
+| **Contratos** | Nomes e tipos das colunas dos marts | Uma mudança de tipo quebra o build em vez de quebrar o dashboard |
+
+Os testes foram validados com *mutation testing*: três bugs introduzidos de propósito (regra de
+atraso, tipo de coluna e join duplicando valores) foram todos detectados.
 
 ## Estrutura
 
@@ -115,7 +129,7 @@ a cada `make transform`. Reconciliação validada: o valor total dos itens bate 
 - [x] **Fase 1: fundação** (git, uv, ruff, pre-commit, configuração centralizada, testes)
 - [x] **Fase 2: ingestão** (Kaggle → DuckDB, camada raw com validação)
 - [x] **Fase 3: transformação** (dbt: staging → intermediate → marts)
-- [ ] **Fase 4: qualidade** (testes de dados e regras de negócio)
+- [x] **Fase 4: qualidade** (testes de dados e regras de negócio)
 - [ ] **Fase 5: orquestração** (Dagster)
 - [ ] **Fase 6: visualização** (Evidence.dev)
 - [ ] **Fase 7: CI/CD e documentação**

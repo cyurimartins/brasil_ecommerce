@@ -1,6 +1,6 @@
 # Interface única de comandos do projeto. Rode `make` ou `make help` para ver as opções.
 .DEFAULT_GOAL := help
-.PHONY: help setup lint format test check ingest transform run docs clean
+.PHONY: help setup lint format test check ingest transform test-dbt-unit run docs clean
 
 UV ?= uv
 DBT_ARGS := --project-dir transform --profiles-dir transform
@@ -36,6 +36,9 @@ ingest: ## Baixa o dataset (se necessário) e carrega a camada raw no DuckDB
 
 transform: ## Executa e testa os modelos dbt (staging → intermediate → marts)
 	$(DBT) build $(DBT_ARGS)
+
+test-dbt-unit: ## Roda só os testes unitários do dbt (lógica dos modelos, rápido)
+	$(DBT) test $(DBT_ARGS) --select test_type:unit
 
 run: ingest transform ## Pipeline completo: ingestão + transformação
 

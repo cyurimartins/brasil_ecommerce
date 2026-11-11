@@ -1,0 +1,84 @@
+version: 2
+
+unit_tests:
+  - name: fato_pedidos__regra_de_atraso
+    description: >
+      O atraso é comparado no nível de DIA, porque a data prometida não tem hora.
+      - p_atrasado: entregue 1 dia depois do prometido → atrasado
+      - p_mesmo_dia: entregue às 23h do dia prometido → NO PRAZO (não é atraso)
+      - p_adiantado: entregue 5 dias antes → no prazo, atraso negativo
+      - p_nao_entregue: ainda em transporte → atraso indefinido (nulo)
+    model: fato_pedidos
+    given:
+      - input: ref('stg_olist__orders')
+        rows:
+          - {order_id: p_atrasado, customer_id: c1, order_status: delivered, purchased_at: "2018-01-01 10:00:00", delivered_to_customer_at: "2018-01-11 09:00:00", estimated_delivery_at: "2018-01-10 00:00:00"}
+          - {order_id: p_mesmo_dia, customer_id: c2, order_status: delivered, purchased_at: "2018-01-01 10:00:00", delivered_to_customer_at: "2018-01-10 23:00:00", estimated_delivery_at: "2018-01-10 00:00:00"}
+          - {order_id: p_adiantado, customer_id: c3, order_status: delivered, purchased_at: "2018-01-01 10:00:00", delivered_to_customer_at: "2018-01-05 12:00:00", estimated_delivery_at: "2018-01-10 00:00:00"}
+          - {order_id: p_nao_entregue, customer_id: c4, order_status: shipped, purchased_at: "2018-01-01 10:00:00", delivered_to_customer_at: null, estimated_delivery_at: "2018-01-10 00:00:00"}
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1}
+          - {customer_id: c2, customer_unique_id: u2}
+          - {customer_id: c3, customer_unique_id: u3}
+          - {customer_id: c4, customer_unique_id: u4}
+      - input: ref('int_order_items__aggregated_to_orders')
+        rows: []
+      - input: ref('int_order_payments__aggregated_to_orders')
+        rows: []
+      - input: ref('int_order_reviews__latest_per_order')
+        rows: []
+    expect:
+      rows:
+        - {id_pedido: p_atrasado, entregue: true, dias_ate_entrega: 10, dias_atraso_entrega: 1, atrasado: true}
+        - {id_pedido: p_mesmo_dia, entregue: true, dias_ate_entrega: 9, dias_atraso_entrega: 0, atrasado: false}
+        - {id_pedido: p_adiantado, entregue: true, dias_ate_entrega: 4, dias_atraso_entrega: -5, atrasado: false}
+        - {id_pedido: p_nao_entregue, entregue: false, dias_ate_entrega: null, dias_atraso_entrega: null, atrasado: null}
+
+  - name: fato_pedidos__pedido_sem_itens_tem_valores_zerados
+    description: >
+      Pedidos cancelados/indisponíveis podem não ter itens: os valores devem ser 0
+      (e não nulos), para não distorcer somas e médias no BI.
+    model: fato_pedidos
+    given:
+      - input: ref('stg_olist__orders')
+        rows:
+          - {order_id: p1, customer_id: c1, order_status: unavailable, purchased_at: "2018-01-01 10:00:00", estimated_delivery_at: "2018-01-10 00:00:00"}
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1}
+      - input: ref('int_order_items__aggregated_to_orders')
+        rows: []
+      - input: ref('int_order_payments__aggregated_to_orders')
+        rows: []
+      - input: ref('int_order_reviews__latest_per_order')
+        rows: []
+    expect:
+      rows:
+        - {id_pedido: p1, quantidade_itens: 0, valor_itens: 0.00, valor_frete: 0.00, valor_pedido: 0.00, usou_voucher: false, quantidade_avaliacoes: 0}
+
+  - name: fato_itens_pedido__distancia_e_mesma_uf
+    description: >
+      Vendedor em São Paulo e cliente no Rio de Janeiro: distância de ~360,7 km
+      (valor calculado de forma independente) e UFs diferentes.
+    model: fato_itens_pedido
+    given:
+      - input: ref('stg_olist__order_items')
+        rows:
+          - {order_id: p1, order_item_id: 1, product_id: prod1, seller_id: s1, item_price: 100.00, freight_value: 20.00}
+      - input: ref('stg_olist__orders')
+        rows:
+          - {order_id: p1, customer_id: c1, order_status: delivered, purchased_at: "2018-01-01 10:00:00"}
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: "20000", customer_state: RJ}
+      - input: ref('stg_olist__sellers')
+        rows:
+          - {seller_id: s1, seller_zip_code_prefix: "01000", seller_state: SP}
+      - input: ref('int_geolocation__by_zip_prefix')
+        rows:
+          - {zip_code_prefix: "01000", latitude: -23.5505, longitude: -46.6333}
+          - {zip_code_prefix: "20000", latitude: -22.9068, longitude: -43.1729}
+    expect:
+      rows:
+        - {id_pedido: p1, valor_total_item: 120.00, mesma_uf: false, distancia_vendedor_cliente_km: 360.7}

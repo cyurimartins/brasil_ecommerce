@@ -36,6 +36,14 @@ class Settings(BaseSettings):
         """Arquivo DuckDB que funciona como data warehouse local."""
         return self.data_dir / "warehouse.duckdb"
 
+    @property
+    def consulta_path(self) -> Path:
+        """Cópia publicada do warehouse, para leitura (DBeaver, dashboard).
+
+        Só é atualizada quando o pipeline termina com todos os testes aprovados.
+        """
+        return self.data_dir / "consulta.duckdb"
+
 
 @lru_cache
 def get_settings() -> Settings:
